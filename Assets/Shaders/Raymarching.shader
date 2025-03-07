@@ -17,6 +17,9 @@ Shader "Custom/RaymarchingShader"
         _PulseAmount ("Pulse Amount", Range(0.0, 1.0)) = 0.2
         _KaleidoscopeAmount ("Kaleidoscope Amount", Range(0.0, 1.0)) = 0.0
         _KaleidoscopeSegments ("Kaleidoscope Segments", Range(1, 20)) = 8
+        _GlowIntensity ("Glow Intensity", Range(0.1, 5.0)) = 1.5
+        _GlowThreshold ("Glow Threshold", Range(0.0, 1.0)) = 0.5
+        _GlowFalloff ("Glow Falloff", Range(0.1, 5.0)) = 2.0
     }
     SubShader {
         Tags { "RenderType"="Opaque" "Queue"="Overlay" }
@@ -54,6 +57,9 @@ Shader "Custom/RaymarchingShader"
             float _PulseAmount;
             float _KaleidoscopeAmount;
             float _KaleidoscopeSegments;
+            float _GlowIntensity;
+            float _GlowThreshold;
+            float _GlowFalloff;
             // _ScreenParams is already defined by Unity
 
             Varyings vert (Attributes IN) {
@@ -178,29 +184,74 @@ Shader "Custom/RaymarchingShader"
                 return normal;
             }
             
-            // Generate color based on fractal properties with trippy pulsating effects
-            float4 getFractalColor(float3 pos, float3 normal)
+            // Generate neon color based on fractal properties with glowing effects
+            float4 getNeonFractalColor(float3 pos, float3 normal, float dist)
             {
                 // Add time-based pulsation
                 float pulseTime = _Time.y * _ColorSpeed;
                 
-                // Create trippy color variations that pulse over time
+                // Use surface characteristics to determine color
+                // - Surface curvature (from normal derivatives)
+                // - Distance from origin
+                // - Normal direction
+                
+                // Calculate surface curvature approximation
+                float eps = 0.01;
+                float3 dx = normalize(calculateNormal(pos + float3(eps, 0, 0)) - normal);
+                float3 dy = normalize(calculateNormal(pos + float3(0, eps, 0)) - normal);
+                float3 dz = normalize(calculateNormal(pos + float3(0, 0, eps)) - normal);
+                float curvature = length(dx + dy + dz) / 3.0;
+                
+                // Distance from origin affects color hue
+                float distFromOrigin = length(pos);
+                
+                // Use normal direction for color variation
+                float normalFactor = (normal.x + normal.y + normal.z) * 0.33 + 0.5;
+                
+                // Create neon color based on surface characteristics
                 float3 baseColor = 0.5 + 0.5 * cos(_ColorIntensity * float3(
-                    length(pos) * 0.5 + pulseTime,
-                    length(pos + normal) * 0.4 + pulseTime * 0.7,
-                    length(pos * normal) * 0.3 + pulseTime * 1.3
-                ) + float3(0, 0.33, 0.67) + _ColorShift);
+                    curvature * 3.0 + pulseTime,
+                    distFromOrigin * 0.3 + pulseTime * 0.7,
+                    normalFactor * 2.0 + pulseTime * 0.5
+                ) + float3(0.1, 0.4, 0.7) + _ColorShift);
                 
-                // Add color cycling based on position and time
-                float cycle = sin(length(pos) * 2.0 + pulseTime) * 0.5 + 0.5;
-                baseColor = lerp(baseColor, 1.0 - baseColor, cycle * 0.5);
+                // Enhance the neon colors by increasing saturation
+                float luminance = dot(baseColor, float3(0.299, 0.587, 0.114));
+                baseColor = lerp(float3(luminance, luminance, luminance), baseColor, 1.5);
                 
-                // Add some iridescence based on viewing angle
+                // Add color variation based on surface curvature
+                // High curvature areas get more cyan, flat areas more magenta
+                float3 curvatureColor = lerp(
+                    float3(1.0, 0.0, 0.8), // Magenta for flat areas
+                    float3(0.0, 0.8, 1.0), // Cyan for high curvature
+                    saturate(curvature * 2.0)
+                );
+                
+                baseColor = lerp(baseColor, curvatureColor, 0.3);
+                
+                // Enhanced fresnel effect for edge glow
                 float3 viewDir = normalize(pos - _WorldSpaceCameraPos);
-                float fresnel = pow(1.0 - abs(dot(normal, viewDir)), 5.0);
+                float fresnel = pow(1.0 - abs(dot(normal, viewDir)), 3.0) * _FresnelIntensity * 1.5;
                 
-                // Mix the base color with a fresnel highlight
-                float3 finalColor = lerp(baseColor, float3(1, 1, 1), fresnel * _FresnelIntensity);
+                // Calculate glow based on distance from surface
+                float glow = smoothstep(_GlowThreshold, _GlowThreshold + _GlowFalloff, fresnel);
+                glow = pow(glow, _GlowFalloff) * _GlowIntensity;
+                
+                // Mix the base color with a neon glow highlight
+                // Use colors derived from surface characteristics for the glow
+                float3 glowColor = lerp(
+                    baseColor * 1.5,
+                    float3(1.0, 1.0, 1.0),
+                    0.3
+                );
+                
+                float3 finalColor = lerp(baseColor, glowColor, fresnel);
+                
+                // Add extra emission for the neon effect
+                finalColor += glow * glowColor;
+                
+                // Boost the brightness for a more pronounced glow
+                finalColor *= (1.0 + glow * 0.5);
                 
                 return float4(finalColor, 1.0);
             }
@@ -243,37 +294,33 @@ Shader "Custom/RaymarchingShader"
                     ));
                     
                     float diffuse = max(dot(normal, lightDir), 0.0);
-                    float ambient = 0.3;
+                    float ambient = 0.2; // Reduced ambient to make glow more pronounced
                     
                     // Add color-cycling specular highlight
                     float3 viewDir = normalize(_WorldSpaceCameraPos - hitPos);
                     float3 halfDir = normalize(lightDir + viewDir);
                     float specularStrength = pow(max(dot(normal, halfDir), 0.0), 32.0) * 0.7;
                     
-                    // Create rainbow specular
+                    // Create rainbow specular with neon colors
                     float3 specularColor = 0.5 + 0.5 * cos(_Time.y * _ColorSpeed + float3(0, 2, 4));
-                    float3 specular = specularColor * specularStrength;
+                    float3 specular = specularColor * specularStrength * 1.5; // Enhanced specular
                     
-                    // Get the fractal color
-                    float4 fractalColor = getFractalColor(hitPos, normal);
+                    // Get the neon fractal color
+                    float4 fractalColor = getNeonFractalColor(hitPos, normal, dist);
                     
                     // Apply lighting with color modulation
                     float3 finalColor = fractalColor.rgb * (diffuse + ambient) + specular;
                     
-                    // Add some depth fog
+                    // Add some depth fog - darker for space aesthetic
                     float fog = 1.0 - saturate(dist * 0.03);
-                    finalColor = lerp(float3(0.1, 0.1, 0.2), finalColor, fog);
+                    finalColor = lerp(float3(0.0, 0.0, 0.05), finalColor, fog); // Very dark blue fog
                     
                     return float4(finalColor, 1.0);
                 }
                 else
                 {
-                    // Sky/background color
-                    // Apply aspect ratio correction to sky gradient
-                    float2 skyUV = rayDir.xy;
-                    skyUV.x /= aspectRatio; // Undo the aspect ratio multiplication for the sky
-                    skyUV = skyUV * 0.5 + 0.5;
-                    return float4(0.6, 0.7, 0.9, 1.0) * (1.0 - length(skyUV - 0.5) * 0.5);
+                    // Pure black background with no stars
+                    return float4(0.0, 0.0, 0.0, 1.0);
                 }
             }
             ENDHLSL
