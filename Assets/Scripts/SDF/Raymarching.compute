@@ -1,0 +1,103 @@
+#pragma kernel CSMain
+
+// Output render target
+RWTexture2D<float4> Result;
+
+// Camera and projection matrices (set these from your script)
+float4x4 _CameraToWorld;
+float4x4 _CameraInverseProjection;
+
+// Directional light (set from your script)
+float3 _LightDirection;
+
+// Raymarching settings
+static const float maxDistance = 100.0;
+static const int maxSteps = 128;
+static const float surfaceEpsilon = 0.001;
+
+// Simple ray structure
+struct Ray {
+    float3 origin;
+    float3 direction;
+};
+
+// Create a normalized ray
+Ray CreateRay(float3 origin, float3 direction) {
+    Ray r;
+    r.origin = origin;
+    r.direction = normalize(direction);
+    return r;
+}
+
+// Get a ray from the camera using UV coordinates in [-1,1] space
+Ray GetCameraRay(float2 uv) {
+    float3 origin = mul(_CameraToWorld, float4(0,0,0,1)).xyz;
+    float3 dir = mul(_CameraInverseProjection, float4(uv, 0, 1)).xyz;
+    dir = mul(_CameraToWorld, float4(dir, 0)).xyz;
+    return CreateRay(origin, dir);
+}
+
+// Signed distance function for a sphere
+float SDF_Sphere(float3 p, float3 center, float radius) {
+    return length(p - center) - radius;
+}
+
+// Define your scene's SDF; here we have one sphere centered at the origin with radius 1.
+float SceneSDF(float3 p) {
+    return SDF_Sphere(p, float3(0,0,0), 1.0);
+}
+
+// Estimate surface normal via numerical gradient
+float3 EstimateNormal(float3 p) {
+    float eps = surfaceEpsilon;
+    float dx = SceneSDF(p + float3(eps, 0, 0)) - SceneSDF(p - float3(eps, 0, 0));
+    float dy = SceneSDF(p + float3(0, eps, 0)) - SceneSDF(p - float3(0, eps, 0));
+    float dz = SceneSDF(p + float3(0, 0, eps)) - SceneSDF(p - float3(0, 0, eps));
+    return normalize(float3(dx, dy, dz));
+}
+
+// Main compute shader entry point
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID) {
+    // Get dimensions
+    uint2 dim;
+    Result.GetDimensions(dim.x, dim.y);
+    if (id.x >= dim.x || id.y >= dim.y) return;
+    
+    // Map pixel coordinate to UV space in [-1,1]
+    float2 uv = (float2(id.x, id.y) / float2(dim)) * 2.0 - 1.0;
+    
+    // Generate the camera ray
+    Ray ray = GetCameraRay(uv);
+    
+    // Raymarching loop variables
+    float distTravelled = 0.0;
+    bool hit = false;
+    
+    // Raymarching loop
+    for (int i = 0; i < maxSteps; i++) {
+        float3 currentPos = ray.origin + ray.direction * distTravelled;
+        float distToScene = SceneSDF(currentPos);
+        if (distToScene < surfaceEpsilon) {
+            hit = true;
+            break;
+        }
+        distTravelled += distToScene;
+        if (distTravelled > maxDistance) break;
+    }
+    
+    // Simple shading: if hit, calculate lighting based on the normal; otherwise, use a background color.
+    float3 color = float3(0.0, 0.0, 0.0);
+    if (hit) {
+        float3 hitPos = ray.origin + ray.direction * distTravelled;
+        float3 normal = EstimateNormal(hitPos);
+        // Basic diffuse shading using the dot product with the light direction
+        float lightIntensity = saturate(dot(normal, normalize(_LightDirection)));
+        color = float3(1.0, 0.0, 0.0) * lightIntensity;  // Red sphere shaded by light
+    } else {
+        // Background gradient (optional)
+        color = lerp(float3(0.1, 0.1, 0.3), float3(0.3, 0.3, 0.5), uv.y * 0.5 + 0.5);
+    }
+    
+    Result[id.xy] = float4(color, 1.0);
+}
