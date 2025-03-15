@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: FractalMaterial
-  m_Shader: {fileID: 4800000, guid: 54bdddbf644cc47ddbcd35e6115b9c97, type: 3}
+  m_Shader: {fileID: 4800000, guid: 4e462eeb0f28e466eb612eb90060edcb, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -35,7 +35,7 @@ Material:
     - _FractalPower: 8
     - _FresnelIntensity: 0
     - _GlowFalloff: 2
-    - _GlowIntensity: 1.5
+    - _GlowIntensity: 1.43
     - _GlowThreshold: 0.5
     - _KaleidoscopeAmount: 0
     - _KaleidoscopeSegments: 8
@@ -43,7 +43,7 @@ Material:
     - _MinDistance: 0.001
     - _PulseAmount: 0
     - _RotationSpeed: 0
-    - _Scale: 1
+    - _Scale: 3.89
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
