@@ -5,7 +5,7 @@ using UnityEngine;
 public class RaymarchingSceneManager : MonoBehaviour
 {
     // Represents a shape that can be raymarched
-    public enum ShapeType { Sphere, Cube, Torus, Mandelbulb }
+    public enum ShapeType { Sphere, Cube, Torus }
     public enum Operation { Union, Blend, Cut, Mask }
 
     // This class defines a shape in the scene
@@ -18,10 +18,6 @@ public class RaymarchingSceneManager : MonoBehaviour
         public Color color = Color.white;
         [Range(0, 1)]
         public float blendStrength = 0.5f;
-        [Range(1, 16)]
-        public float specialParam1 = 8f; // Fractal power for Mandelbulb
-        [Range(1, 20)]
-        public float specialParam2 = 10f; // Fractal iterations for Mandelbulb
     }
 
     // List of shapes to raymarch
@@ -106,8 +102,6 @@ public class RaymarchingSceneManager : MonoBehaviour
                 shapeType = (int)shape.shapeType,
                 operation = (int)shape.operation,
                 blendStrength = shape.blendStrength,
-                specialParam1 = shape.specialParam1,
-                specialParam2 = shape.specialParam2,
                 numChildren = 0 // For now, not handling hierarchies
             };
         }
