@@ -20,7 +20,7 @@ public class RaymarchingRenderFeature : ScriptableRendererFeature
                 return;
 
             CommandBuffer cmd = CommandBufferPool.Get(profilerTag);
-            
+
             // Unity automatically sets _ScreenParams, no need to set it manually
 
             // Get the camera's current color target.

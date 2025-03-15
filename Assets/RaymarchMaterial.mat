@@ -26,24 +26,24 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _ColorIntensity: 5
-    - _ColorShift: 4.29
+    - _ColorIntensity: 1
+    - _ColorShift: 1
     - _ColorSpeed: 1
     - _DistortionAmount: 0
-    - _DistortionSpeed: 0
-    - _FractalIterations: 6.8
+    - _DistortionSpeed: 1
+    - _FractalIterations: 17.08
     - _FractalPower: 8
-    - _FresnelIntensity: 0.96
+    - _FresnelIntensity: 0
     - _GlowFalloff: 2
     - _GlowIntensity: 1.5
     - _GlowThreshold: 0.5
     - _KaleidoscopeAmount: 0
-    - _KaleidoscopeSegments: 4.1
-    - _Loop: 22
-    - _MinDistance: 0.0001
-    - _PulseAmount: 1
-    - _RotationSpeed: 0.15
-    - _Scale: 1.9
+    - _KaleidoscopeSegments: 8
+    - _Loop: 96
+    - _MinDistance: 0.001
+    - _PulseAmount: 0
+    - _RotationSpeed: 0
+    - _Scale: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
