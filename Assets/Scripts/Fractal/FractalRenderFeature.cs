@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-public class RaymarchingRenderFeature : ScriptableRendererFeature
+public class FractalRenderFeature : ScriptableRendererFeature
 {
     class RaymarchingRenderPass : ScriptableRenderPass
     {

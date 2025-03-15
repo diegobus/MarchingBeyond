@@ -28,7 +28,7 @@ public class RaymarchingSceneManager : MonoBehaviour
     public List<RaymarchShape> shapes = new List<RaymarchShape>();
 
     // Reference to your render feature
-    public RaymarchingRenderFeature renderFeature;
+    public SDFRenderFeature renderFeature;
 
     // Buffer for passing shape data to the shader
     private ComputeBuffer shapeBuffer;
