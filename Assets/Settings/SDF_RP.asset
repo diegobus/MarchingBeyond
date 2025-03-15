@@ -130,5 +130,5 @@ MonoBehaviour:
   m_Name: SDFRenderFeature
   m_EditorClassIdentifier: 
   m_Active: 1
-  raymarchMaterial: {fileID: 0}
-  renderPassEvent: 500
+  raymarchMaterial: {fileID: 2100000, guid: ca12344d1b5d942e49ca751df4d8b053, type: 2}
+  renderPassEvent: 400
