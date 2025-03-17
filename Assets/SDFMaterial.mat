@@ -110,13 +110,14 @@ Material:
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EnvironmentReflections: 1
+    - _FOV: 60
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _MaxDistance: 100
-    - _MaxSteps: 100
+    - _MaxDistance: 81.9
+    - _MaxSteps: 147
     - _Metallic: 0
-    - _MinDistance: 0.001
+    - _MinDistance: 0.0001
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueOffset: 0
