@@ -1,14 +1,24 @@
 Shader "Custom/SimpleMandelbulb"
 {
     Properties {
-        _Color ("Color", Color) = (1,1,1,1)
-        _Loop ("Raymarch Loop", Range(1,300)) = 100
-        _MinDistance ("Min Distance", Range(0.0001, 0.1)) = 0.001
         _FractalPower ("Fractal Power", Range(1, 16)) = 8
         _FractalIterations ("Fractal Iterations", Range(1, 20)) = 10
+        _Loop ("Raymarch Loop", Range(1,300)) = 100
+        _MinDistance ("Min Distance", Range(0.0001, 0.1)) = 0.001
         _Scale ("Scale", Range(0.1, 5.0)) = 1.0
         _CSize ("Clamp Size", Range(0.1, 2.0)) = 1.0
         _FOV ("Field Of View", Range(30, 120)) = 60
+        
+        // Color properties
+        _BaseColor ("Base Color", Color) = (0.2, 0.4, 0.6, 1.0)
+        _GlowColor ("Edge Glow Color", Color) = (1.0, 0.5, 0.1, 1.0)
+        _GlowIntensity ("Glow Intensity", Range(0, 5)) = 2.0
+        _GlowFalloff ("Glow Falloff", Range(1, 10)) = 3.0
+        _GlowThreshold ("Glow Threshold", Range(0, 1)) = 0.5
+        
+        // Background colors
+        _BackgroundColorA ("Background Color A", Color) = (0.02, 0.05, 0.1, 1)
+        _BackgroundColorB ("Background Color B", Color) = (0.05, 0.01, 0.15, 1)
     }
     SubShader {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" }
@@ -30,7 +40,6 @@ Shader "Custom/SimpleMandelbulb"
                 float2 uv : TEXCOORD0;
             };
 
-            float4 _Color;
             float _Loop;
             float _MinDistance;
             float _FractalPower;
@@ -38,6 +47,15 @@ Shader "Custom/SimpleMandelbulb"
             float _Scale;
             float _CSize;
             float _FOV;
+            
+            // Color variables
+            float4 _BaseColor;
+            float4 _GlowColor;
+            float _GlowIntensity;
+            float _GlowFalloff;
+            float _GlowThreshold;
+            float4 _BackgroundColorA;
+            float4 _BackgroundColorB;
 
             // Ray structure for more organized ray handling
             struct Ray {
@@ -77,7 +95,8 @@ Shader "Custom/SimpleMandelbulb"
             }
 
             // Basic Mandelbulb fractal SDF
-            float sdMandelbulb(float3 pos)
+            // Returns float2 with (iterations, distance)
+            float2 sdMandelbulb(float3 pos)
             {
                 pos = pos / _Scale; // Scale the space
                 
@@ -85,8 +104,10 @@ Shader "Custom/SimpleMandelbulb"
                 float dr = 1.0;
                 float r = 0.0;
                 float power = _FractalPower;
+                int iterations = 0;
                 
                 for (int i = 0; i < (int)_FractalIterations; i++) {
+                    iterations = i;
                     r = length(z);
                     
                     if (r > 2.0) break;
@@ -107,11 +128,13 @@ Shader "Custom/SimpleMandelbulb"
                 }
                 
                 // Distance estimator
-                return 0.5 * log(r) * r / dr * _Scale;
+                float dst = 0.5 * log(r) * r / dr * _Scale;
+                return float2(iterations, dst);
             }
 
             // Weird global fractal
-            float sdFractal(float3 p) {
+            // Returns float2 with (iterations, distance)
+            float2 sdFractal(float3 p) {
                 // Scale the input position like in sdMandelbulb
                 p = p / _Scale;
                 
@@ -121,9 +144,11 @@ Shader "Custom/SimpleMandelbulb"
                 
                 // Use _CSize as the clamp size parameter
                 float3 clampSize = float3(_CSize, _CSize, _CSize);
+                int iterations = 0;
                 
                 for(int i=0; i < 8; i++)
                 {
+                    iterations = i;
                     p = 2.0 * clamp(p, -clampSize, clampSize) - p;
                     
                     // Use alternate fractal calculation with sine wave
@@ -139,30 +164,42 @@ Shader "Custom/SimpleMandelbulb"
                 rxy = max(rxy, n / 8.0);
                 
                 // Apply the scale factor like in sdMandelbulb
-                return (rxy) / abs(scale) * _Scale;
+                float dst = (rxy) / abs(scale) * _Scale;
+                return float2(iterations, dst);
             }
             
             // Distance function for the scene
-            float distanceFunction(float3 pos)
+            // Returns float2 with (iterations, distance)
+            float2 sceneInfo(float3 pos)
             {
                 return sdFractal(pos);
             }
 
             // A basic raymarching loop
-            float3 raymarch(Ray ray)
+            // Returns float4 with (marchSteps, hitDistance, iterations, hitFlag)
+            float4 raymarch(Ray ray)
             {
-                float totalDistance = 0.0;
+                float rayDst = 0.0;
+                int marchSteps = 0;
+                
                 for (int i = 0; i < (int)_Loop; i++)
                 {
-                    float3 pos = ray.origin + ray.direction * totalDistance;
-                    float dist = distanceFunction(pos);
-                    if (dist < _MinDistance)
-                        break;
-                    totalDistance += dist;
-                    if (totalDistance > 100.0) // Clamp maximum distance
+                    marchSteps = i;
+                    float3 pos = ray.origin + ray.direction * rayDst;
+                    float2 info = sceneInfo(pos);
+                    float dist = info.y;
+                    
+                    if (dist < _MinDistance) {
+                        // Hit - return steps, distance, and iterations
+                        return float4(marchSteps, rayDst, info.x, 1);
+                    }
+                    
+                    rayDst += dist;
+                    if (rayDst > 100.0) // Clamp maximum distance
                         break;
                 }
-                return ray.origin + ray.direction * totalDistance;
+                // No hit - return steps and max distance
+                return float4(marchSteps, rayDst, 0, 0);
             }
 
             // Calculate normal at a point
@@ -172,9 +209,9 @@ Shader "Custom/SimpleMandelbulb"
                 float2 e = float2(eps, 0);
                 
                 float3 normal = normalize(float3(
-                    distanceFunction(pos + e.xyy) - distanceFunction(pos - e.xyy),
-                    distanceFunction(pos + e.yxy) - distanceFunction(pos - e.yxy),
-                    distanceFunction(pos + e.yyx) - distanceFunction(pos - e.yyx)
+                    sceneInfo(pos + e.xyy).y - sceneInfo(pos - e.xyy).y,
+                    sceneInfo(pos + e.yxy).y - sceneInfo(pos - e.yxy).y,
+                    sceneInfo(pos + e.yyx).y - sceneInfo(pos - e.yyx).y
                 ));
                 
                 return normal;
@@ -182,34 +219,53 @@ Shader "Custom/SimpleMandelbulb"
             
             float4 frag(Varyings IN) : SV_Target
             {
+                // Background gradient
+                float4 result = lerp(_BackgroundColorA, _BackgroundColorB, IN.uv.y);
+                
                 // Create ray using the CreateRay function
                 Ray ray = CreateRay(IN.uv);
                 
                 // March along the ray
-                float3 hitPos = raymarch(ray);
-                float dist = length(hitPos - ray.origin);
+                float4 marchResult = raymarch(ray);
+                int marchSteps = marchResult.x;
+                float dist = marchResult.y;
+                float escapeIterations = marchResult.z;
+                bool hit = marchResult.w > 0;
                 
-                // If we hit something (within a reasonable distance)
-                if (dist < 100.0)
+                // If we hit something
+                if (hit)
                 {
+                    // Calculate hit position
+                    float3 hitPos = ray.origin + ray.direction * dist;
+                    
                     // Calculate the normal at the hit point
                     float3 normal = calculateNormal(hitPos);
                     
                     // Basic lighting with a fixed light direction
                     float3 lightDir = normalize(float3(0.5, 0.5, -0.5));
-                    float diffuse = max(dot(normal, lightDir), 0.0);
-                    float ambient = 0.2;
+                    float diffuse = max(dot(normal, lightDir), 0.2); // Add some ambient
                     
-                    // Apply base color with simple lighting
-                    float3 finalColor = _Color.rgb * (diffuse + ambient);
+                    // Apply base color with diffuse lighting
+                    float3 baseColorWithLighting = _BaseColor.rgb * diffuse;
                     
-                    return float4(finalColor, 1.0);
+                    // Calculate Fresnel/edge glow effect
+                    // The dot product of normal and view direction is smallest at grazing angles
+                    float fresnel = pow(1.0 - saturate(dot(normal, -ray.direction)), _GlowFalloff);
+                    
+                    // Apply threshold to control where glow starts
+                    fresnel = saturate((fresnel - _GlowThreshold) / (1.0 - _GlowThreshold));
+                    
+                    // Mix base color with glow color based on fresnel
+                    float3 finalColor = lerp(baseColorWithLighting, _GlowColor.rgb, fresnel * _GlowIntensity);
+                    
+                    // Iteration-based detail can be added to the glow intensity
+                    float iterationFactor = saturate(escapeIterations / _FractalIterations);
+                    finalColor += _GlowColor.rgb * fresnel * iterationFactor * _GlowIntensity * 0.5;
+                    
+                    result = float4(finalColor, 1.0);
                 }
-                else
-                {
-                    // Background color
-                    return float4(0.0, 0.0, 0.0, 1.0);
-                }
+                
+                return result;
             }
             ENDHLSL
         }
