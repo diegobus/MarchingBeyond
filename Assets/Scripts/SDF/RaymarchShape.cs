@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class RaymarchShape : MonoBehaviour
 {
-    public enum ShapeType { Sphere, Cube, Torus }
+    public enum ShapeType { Sphere, Cube, Torus, Cylinder, Prism }
     public enum Operation { Union, Blend, Cut, Mask }
 
     public ShapeType shapeType;
@@ -32,6 +32,15 @@ public class RaymarchShape : MonoBehaviour
                 parentScale = transform.parent.GetComponent<RaymarchShape>().Scale;
             }
             return Vector3.Scale(transform.localScale, parentScale);
+        }
+    }
+    
+    public Vector3 Rotation
+    {
+        get
+        {
+            // Convert Unity's Euler angles to radians for the shader
+            return transform.eulerAngles * Mathf.Deg2Rad;
         }
     }
 }

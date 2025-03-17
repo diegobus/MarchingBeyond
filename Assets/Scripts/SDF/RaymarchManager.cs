@@ -18,13 +18,12 @@ public class RaymarchManager : MonoBehaviour
         public Vector3 position;
         public Vector3 scale;
         public Vector4 color;
+        public Vector3 rotation;
         public int shapeType;
         public int operation;
         public float blendStrength;
         public int numChildren;
         public float padding1; // For alignment
-        public float padding2; // For alignment
-        public float padding3; // For alignment
 
         public static int GetSize()
         {
@@ -32,11 +31,12 @@ public class RaymarchManager : MonoBehaviour
                 sizeof(float) * 3 + // position
                 sizeof(float) * 3 + // scale
                 sizeof(float) * 4 + // color
+                sizeof(float) * 3 + // rotation
                 sizeof(int) + // shapeType
                 sizeof(int) + // operation
                 sizeof(float) + // blendStrength
                 sizeof(int) + // numChildren
-                sizeof(float) * 3; // padding
+                sizeof(float); // padding
         }
     }
 
@@ -134,6 +134,7 @@ public class RaymarchManager : MonoBehaviour
             {
                 position = shape.Position,
                 scale = shape.Scale,
+                rotation = shape.Rotation,
                 color = new Vector4(shape.color.r, shape.color.g, shape.color.b, shape.color.a),
                 shapeType = (int)shape.shapeType,
                 operation = (int)shape.operation,
