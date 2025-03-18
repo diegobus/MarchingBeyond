@@ -8,8 +8,8 @@ public class RaymarchShape : MonoBehaviour
     public ShapeType shapeType;
     public Operation operation;
     public Color color = Color.white;
-    [Range(0, 1)]
-    public float blendStrength = 0.5f;
+    [Range(0, 2)]
+    public float blendStrength = 0f;
 
     // To track parent/child relationships
     [HideInInspector]
@@ -34,7 +34,7 @@ public class RaymarchShape : MonoBehaviour
             return Vector3.Scale(transform.localScale, parentScale);
         }
     }
-    
+
     public Vector3 Rotation
     {
         get

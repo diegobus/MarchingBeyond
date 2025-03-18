@@ -1,8 +1,6 @@
 Shader "Custom/SimpleMandelbulb"
 {
     Properties {
-        _FractalPower ("Fractal Power", Range(1, 16)) = 8
-        _FractalIterations ("Fractal Iterations", Range(1, 20)) = 10
         _Loop ("Raymarch Loop", Range(1,300)) = 100
         _MinDistance ("Min Distance", Range(0.0001, 0.1)) = 0.001
         _Scale ("Scale", Range(0.1, 5.0)) = 1.0
@@ -10,15 +8,25 @@ Shader "Custom/SimpleMandelbulb"
         _FOV ("Field Of View", Range(30, 120)) = 60
         
         // Color properties
-        _BaseColor ("Base Color", Color) = (0.2, 0.4, 0.6, 1.0)
-        _GlowColor ("Edge Glow Color", Color) = (1.0, 0.5, 0.1, 1.0)
-        _GlowIntensity ("Glow Intensity", Range(0, 5)) = 2.0
-        _GlowFalloff ("Glow Falloff", Range(1, 10)) = 3.0
-        _GlowThreshold ("Glow Threshold", Range(0, 1)) = 0.5
+        _BaseColor ("Base Color", Color) = (0.05, 0.2, 0.15, 1.0)
+        
+        // Color palette for the quantum realm effect
+        _ColorA ("Deep Color", Color) = (0.05, 0.1, 0.3, 1.0)      // Deep blue-purple
+        _ColorB ("Mid Color", Color) = (0.2, 0.8, 0.5, 1.0)        // Vibrant teal
+        _ColorC ("Bright Color", Color) = (0.9, 0.6, 0.1, 1.0)     // Golden amber
+        _ColorD ("Accent Color", Color) = (0.7, 0.05, 0.2, 1.0)    // Deep red
+        _ColorVariation ("Color Variation", Range(0.1, 5.0)) = 2.0
+        _ColorSpeed ("Color Animation Speed", Range(0.0, 5.0)) = 1.0
         
         // Background colors
         _BackgroundColorA ("Background Color A", Color) = (0.02, 0.05, 0.1, 1)
         _BackgroundColorB ("Background Color B", Color) = (0.05, 0.01, 0.15, 1)
+        
+        // Fog properties
+        _FogColor ("Fog Color", Color) = (0.2, 0.3, 0.4, 1.0)
+        _FogDensity ("Fog Density", Range(0.0, 0.1)) = 0.02
+        _FogStart ("Fog Start Distance", Range(0.0, 50.0)) = 10.0
+        _FogEnd ("Fog End Distance", Range(0.0, 100.0)) = 50.0
     }
     SubShader {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" }
@@ -42,20 +50,26 @@ Shader "Custom/SimpleMandelbulb"
 
             float _Loop;
             float _MinDistance;
-            float _FractalPower;
-            float _FractalIterations;
             float _Scale;
             float _CSize;
             float _FOV;
             
             // Color variables
             float4 _BaseColor;
-            float4 _GlowColor;
-            float _GlowIntensity;
-            float _GlowFalloff;
-            float _GlowThreshold;
+            float4 _ColorA;
+            float4 _ColorB;
+            float4 _ColorC;
+            float4 _ColorD;
+            float _ColorVariation;
+            float _ColorSpeed;
             float4 _BackgroundColorA;
             float4 _BackgroundColorB;
+            
+            // Fog variables
+            float4 _FogColor;
+            float _FogDensity;
+            float _FogStart;
+            float _FogEnd;
 
             // Ray structure for more organized ray handling
             struct Ray {
@@ -94,48 +108,10 @@ Shader "Custom/SimpleMandelbulb"
                 return OUT;
             }
 
-            // Basic Mandelbulb fractal SDF
-            // Returns float2 with (iterations, distance)
-            float2 sdMandelbulb(float3 pos)
-            {
-                pos = pos / _Scale; // Scale the space
-                
-                float3 z = pos;
-                float dr = 1.0;
-                float r = 0.0;
-                float power = _FractalPower;
-                int iterations = 0;
-                
-                for (int i = 0; i < (int)_FractalIterations; i++) {
-                    iterations = i;
-                    r = length(z);
-                    
-                    if (r > 2.0) break;
-                    
-                    // Convert to polar coordinates
-                    float theta = acos(z.z / r);
-                    float phi = atan2(z.y, z.x);
-                    dr = pow(r, power - 1.0) * power * dr + 1.0;
-                    
-                    // Scale and rotate the point
-                    float zr = pow(r, power);
-                    theta = theta * power;
-                    phi = phi * power;
-                    
-                    // Convert back to cartesian coordinates
-                    z = zr * float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
-                    z += pos; // Add the original position back
-                }
-                
-                // Distance estimator
-                float dst = 0.5 * log(r) * r / dr * _Scale;
-                return float2(iterations, dst);
-            }
-
             // Weird global fractal
             // Returns float2 with (iterations, distance)
             float2 sdFractal(float3 p) {
-                // Scale the input position like in sdMandelbulb
+                // Scale the input position
                 p = p / _Scale;
                 
                 // Swap coordinates for different orientation
@@ -163,7 +139,7 @@ Shader "Custom/SimpleMandelbulb"
                 float n = l * p.z;
                 rxy = max(rxy, n / 8.0);
                 
-                // Apply the scale factor like in sdMandelbulb
+                // Apply the scale factor
                 float dst = (rxy) / abs(scale) * _Scale;
                 return float2(iterations, dst);
             }
@@ -217,6 +193,45 @@ Shader "Custom/SimpleMandelbulb"
                 return normal;
             }
             
+            // Calculate fog factor based on distance
+            float calculateFog(float distance)
+            {
+                // Linear fog
+                float fogFactor = saturate((distance - _FogStart) / (_FogEnd - _FogStart));
+                return fogFactor;
+            }
+            
+            // Quantum realm color function - based on palette interpolation
+            float3 quantumRealmColor(float3 pos, float3 normal, float3 viewDir, float iterations, float timeValue)
+            {
+                // Create layered color effect using position, normal and iteration data
+                float t1 = sin(dot(pos * 0.1, float3(1.0, 0.5, 0.2)) + timeValue) * 0.5 + 0.5;
+                float t2 = cos(dot(normal, float3(0.3, 0.8, 0.4)) * 3.0 + timeValue * 0.7) * 0.5 + 0.5;
+                float t3 = sin(iterations * 0.4 + timeValue * 0.5) * 0.5 + 0.5;
+                
+                // View-dependent effect (like an interference pattern)
+                float fresnel = pow(1.0 - saturate(dot(normal, -viewDir)), 4.0);
+                
+                // Distance from center creates rings
+                float distRings = sin(length(pos) * 2.0 - timeValue) * 0.5 + 0.5;
+                
+                // Combine these parameters for color mixing
+                float pattern = (t1 * 0.4 + t2 * 0.3 + t3 * 0.2 + fresnel * 0.5 + distRings * 0.4) / 1.8;
+                
+                // Modify pattern with iteration data for more depth
+                pattern = pattern * (1.0 - iterations / 8.0) + (iterations / 8.0) * sin(pattern * 6.28 + timeValue);
+                
+                // First color blend
+                float3 color1 = lerp(_ColorA.rgb, _ColorB.rgb, saturate(pattern));
+                
+                // Second color blend
+                float3 color2 = lerp(_ColorC.rgb, _ColorD.rgb, saturate(1.0 - pattern));
+                
+                // Final color blend with iteration influence
+                float lerpFactor = sin(iterations * 0.7 + fresnel * 2.0 + timeValue * 0.3) * 0.5 + 0.5;
+                return lerp(color1, color2, lerpFactor);
+            }
+            
             float4 frag(Varyings IN) : SV_Target
             {
                 // Background gradient
@@ -229,8 +244,11 @@ Shader "Custom/SimpleMandelbulb"
                 float4 marchResult = raymarch(ray);
                 int marchSteps = marchResult.x;
                 float dist = marchResult.y;
-                float escapeIterations = marchResult.z;
+                float iterations = marchResult.z;
                 bool hit = marchResult.w > 0;
+                
+                // Time value for animation
+                float timeValue = _Time.y * _ColorSpeed;
                 
                 // If we hit something
                 if (hit)
@@ -245,25 +263,25 @@ Shader "Custom/SimpleMandelbulb"
                     float3 lightDir = normalize(float3(0.5, 0.5, -0.5));
                     float diffuse = max(dot(normal, lightDir), 0.2); // Add some ambient
                     
-                    // Apply base color with diffuse lighting
-                    float3 baseColorWithLighting = _BaseColor.rgb * diffuse;
+                    // Apply quantum realm color effect
+                    float3 quantumColor = quantumRealmColor(hitPos, normal, ray.direction, iterations, timeValue);
                     
-                    // Calculate Fresnel/edge glow effect
-                    // The dot product of normal and view direction is smallest at grazing angles
-                    float fresnel = pow(1.0 - saturate(dot(normal, -ray.direction)), _GlowFalloff);
+                    // Blend with base color and lighting
+                    float3 finalColor = lerp(_BaseColor.rgb * diffuse, quantumColor, 0.8);
                     
-                    // Apply threshold to control where glow starts
-                    fresnel = saturate((fresnel - _GlowThreshold) / (1.0 - _GlowThreshold));
+                    // Add subtle pulsing glow based on iteration and time
+                    float pulse = sin(iterations * 0.5 + timeValue) * 0.5 + 0.5;
+                    finalColor += quantumColor * pulse * 0.3;
                     
-                    // Mix base color with glow color based on fresnel
-                    float3 finalColor = lerp(baseColorWithLighting, _GlowColor.rgb, fresnel * _GlowIntensity);
-                    
-                    // Iteration-based detail can be added to the glow intensity
-                    float iterationFactor = saturate(escapeIterations / _FractalIterations);
-                    finalColor += _GlowColor.rgb * fresnel * iterationFactor * _GlowIntensity * 0.5;
+                    // Apply variation in intensity
+                    finalColor *= (1.0 + sin(dot(hitPos, float3(0.1, 0.2, 0.3)) + timeValue) * 0.2);
                     
                     result = float4(finalColor, 1.0);
                 }
+                
+                // Apply fog based on distance
+                float fogFactor = calculateFog(dist);
+                result.rgb = lerp(result.rgb, _FogColor.rgb, fogFactor);
                 
                 return result;
             }
