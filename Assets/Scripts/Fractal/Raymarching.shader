@@ -1,4 +1,4 @@
-Shader "Custom/SimpleMandelbulb"
+Shader "Custom/FractalShader"
 {
     Properties {
         _Loop ("Raymarch Loop", Range(1,300)) = 100

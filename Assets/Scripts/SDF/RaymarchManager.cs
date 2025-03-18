@@ -8,7 +8,6 @@ public class RaymarchManager : MonoBehaviour
     public Material raymarchMaterial;
     public SDFRenderFeature renderFeature;
 
-    private Camera cam;
     private Light mainLight;
     private ComputeBuffer shapeBuffer;
 

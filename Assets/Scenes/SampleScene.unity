@@ -364,6 +364,7 @@ GameObject:
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
+  - component: {fileID: 330585550}
   - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
@@ -512,17 +513,28 @@ MonoBehaviour:
   m_GameObject: {fileID: 330585543}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c27af5fde54cd4b3bad1fa7ba6094b31, type: 3}
+  m_Script: {fileID: 11500000, guid: 883a3f8ca42cc4abba878cd4117b20e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 1316787686}
-  smoothTime: 0.3
   fractalScale: 3
   clampSize: 1
   fractalIterations: 8
   safeDistance: 0.1
   pushStrength: 1
-  collisionThreshold: 0.05
+--- !u!114 &330585550
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98e70528a624d4c75bb9472dc116af65, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 1316787686}
+  smoothTime: 0.3
 --- !u!1 &358168319
 GameObject:
   m_ObjectHideFlags: 0
@@ -20229,14 +20241,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 1705920807}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bad5ac47807034ed5945b06990fc425f, type: 3}
+  m_Script: {fileID: 11500000, guid: 883a3f8ca42cc4abba878cd4117b20e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 1
-  lookSensitivity: 1
-  spaceshipModel: {fileID: 1280280345}
-  leanAngle: 15
-  leanSpeed: 5
+  fractalScale: 3
+  clampSize: 1
+  fractalIterations: 8
+  safeDistance: 0.1
+  pushStrength: 1
 --- !u!114 &1705920810
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20249,11 +20261,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e0c0253814aea4550b3cd0d95466f46b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  fractalScale: 3
-  clampSize: 1
-  fractalIterations: 8
-  safeDistance: 0.1
-  pushStrength: 1
+  moveSpeed: 1
+  lookSensitivity: 1
+  spaceshipModel: {fileID: 1280280345}
+  leanAngle: 15
+  leanSpeed: 5
 --- !u!1 &1976001472
 GameObject:
   m_ObjectHideFlags: 0
